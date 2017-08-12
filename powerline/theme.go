@@ -25,6 +25,20 @@ type Theme struct {
 	Error ColorPair
 }
 
+func Dark() Theme {
+	return Theme{
+		ShellBg: "3",
+		Home: ColorPair{Bg: "237", Fg: "7"},
+		Path: ColorTriplet{Bg: "25", Fg: "254"},
+		Git: Git{
+			Clean: ColorPair{Bg: "148", Fg: "0"},
+			Dirty: ColorPair{Bg: "161", Fg: "15"},
+		},
+		Lock: ColorPair{Bg: "3", Fg: "7"},
+		Error: ColorPair{Bg: "1", Fg: "7"},
+	}
+}
+
 func SolarizedDark() Theme {
 	return Theme{
 		ShellBg: "0",

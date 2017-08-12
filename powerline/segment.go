@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 type Segment struct {
@@ -78,6 +79,8 @@ func PathSegment(cwdParts []string, t Theme, s Symbols) Segment {
 		tmp := []string{}
 		tmp = append(tmp, cwdParts[0])
 		tmp = append(tmp, s.Ellipsis)
+		tmp = append(tmp, cwdParts[length-4])
+		tmp = append(tmp, cwdParts[length-3])
 		tmp = append(tmp, cwdParts[length - 2])
 		tmp = append(tmp, cwdParts[length - 1])
 		cwdParts = tmp
@@ -91,7 +94,7 @@ func PathSegment(cwdParts []string, t Theme, s Symbols) Segment {
 	}
 }
 
-func getGitInformation() (string, bool) {
+func GetGitInformation() (string, bool) {
 	var status string
 	var staged bool
 	stdout, _ := exec.Command("git", "status", "--ignore-submodules").Output()
@@ -124,8 +127,7 @@ func getGitInformation() (string, bool) {
 	return status, staged
 }
 
-func GitSegment(t Theme) Segment {
-	gitStatus, gitStaged := getGitInformation()
+func GitSegment(t Theme, gitStatus string, gitStaged bool) Segment {
 
 	if gitStatus != "" {
 		var bg string
@@ -158,5 +160,23 @@ func ExitCodeSegment(code string, t Theme) Segment {
 			Fg: t.Error.Fg,
 			values: []string{code},
 		}
+	}
+}
+
+func BashSegment(t Theme) Segment {
+	return Segment{
+		Bg: t.Home.Bg,
+		Fg: t.Home.Fg,
+		values: []string{
+			"$",
+		},
+	}
+}
+
+func TimeSegment(time time.Time, t Theme) Segment {
+	return Segment{
+		Bg: t.Path.Bg,
+		Fg: t.Path.Fg,
+		values: []string{time.Format("Mon 2 15:04:05")},
 	}
 }

@@ -1,166 +1,40 @@
 package main
 
 import (
-	"reflect"
-	"strings"
 	"testing"
+	"./powerline"
+	"strings"
+	"github.com/stretchr/testify/assert"
+	"time"
 )
 
-func Test_addCwd_root(t *testing.T) {
-	segments := [][]string{}
+var shell = "test"
 
-	dir := "/"
-	parts := strings.Split(dir, "/")
+func Test_root(t *testing.T) {
+	cwd := "/home/username/dirname"
+	cwdParts := strings.Split(cwd, "/")
 
-	rootSegments := addCwd(parts, "...", ">")
-	want := append(segments, []string{"250", "237", "/"})
-
-	if !reflect.DeepEqual(rootSegments, want) {
-		t.Errorf("addCwd returned %+v, not %+v", rootSegments, want)
+	theme := powerline.SolarizedDark()
+	symbols := powerline.TestSymbols()
+	p := powerline.NewPowerline(shell, symbols, theme)
+	testNow, err := time.Parse(time.RFC3339Nano, "2013-06-05T14:10:43.678Z")
+	if err != nil {
+		t.Error(err)
 	}
-}
+	gitStatus := "master"
+	gitStaged := false
+	width := "80"
 
-func Test_addCwd_root_one(t *testing.T) {
-	segments := [][]string{}
+	p.AppendLeft(powerline.HomeSegment(cwdParts, theme))
+	p.AppendLeft(powerline.PathSegment(cwdParts, theme, symbols))
+	p.AppendLeft(powerline.LockSegment(cwd, theme, symbols))
+	p.AppendRight(powerline.GitSegment(theme, gitStatus, gitStaged))
+	p.AppendRight(powerline.TimeSegment(testNow, theme))
+	p.AppendDown(powerline.BashSegment(theme))
+	p.AppendDown(powerline.ExitCodeSegment("0", theme))
 
-	dir := "/Go"
-	parts := strings.Split(dir, "/")
+	rootSegments := p.PrintAll(width)
+	want := " / > home > username > dirname -> L .R->.R        <- master <- Wed 5 14:10:43 .R\n $ .R->.R "
 
-	rootSegments := addCwd(parts, "...", ">")
-	want := append(
-		segments,
-		[]string{"250", "237", "Go"},
-	)
-
-	if !reflect.DeepEqual(rootSegments, want) {
-		t.Errorf("addCwd returned %+v, not %+v", rootSegments, want)
-	}
-}
-
-func Test_addCwd_root_two(t *testing.T) {
-	segments := [][]string{}
-
-	dir := "/Go/src"
-	parts := strings.Split(dir, "/")
-
-	rootSegments := addCwd(parts, "...", ">")
-	want := append(
-		segments,
-		[]string{"250", "237", "Go", ">", "244"},
-		[]string{"250", "237", "src"},
-	)
-
-	if !reflect.DeepEqual(rootSegments, want) {
-		t.Errorf("addCwd returned %+v, not %+v", rootSegments, want)
-	}
-}
-
-func Test_addCwd_root_three(t *testing.T) {
-	segments := [][]string{}
-
-	dir := "/Go/src/github.com"
-	parts := strings.Split(dir, "/")
-
-	rootSegments := addCwd(parts, "...", ">")
-	want := append(
-		segments,
-		[]string{"250", "237", "Go", ">", "244"},
-		[]string{"250", "237", "...", ">", "244"},
-		[]string{"250", "237", "github.com"},
-	)
-
-	if !reflect.DeepEqual(rootSegments, want) {
-		t.Errorf("addCwd returned %+v, not %+v", rootSegments, want)
-	}
-}
-
-func Test_addCwd_home(t *testing.T) {
-	segments := [][]string{}
-
-	dir := "~"
-	parts := strings.Split(dir, "/")
-
-	rootSegments := addCwd(parts, "...", ">")
-	want := append(segments, []string{"015", "031", "~"})
-
-	if !reflect.DeepEqual(rootSegments, want) {
-		t.Errorf("addCwd returned %+v, not %+v", rootSegments, want)
-	}
-}
-
-func Test_addCwd_home_one(t *testing.T) {
-	segments := [][]string{}
-
-	dir := "~/Go"
-	parts := strings.Split(dir, "/")
-
-	rootSegments := addCwd(parts, "...", ">")
-	want := append(
-		segments,
-		[]string{"015", "031", "~"},
-		[]string{"250", "237", "Go"},
-	)
-
-	if !reflect.DeepEqual(rootSegments, want) {
-		t.Errorf("addCwd returned %+v, not %+v", rootSegments, want)
-	}
-}
-
-func Test_addCwd_home_two(t *testing.T) {
-	segments := [][]string{}
-
-	dir := "~/Go/src"
-	parts := strings.Split(dir, "/")
-
-	rootSegments := addCwd(parts, "...", ">")
-	want := append(
-		segments,
-		[]string{"015", "031", "~"},
-		[]string{"250", "237", "Go", ">", "244"},
-		[]string{"250", "237", "src"},
-	)
-
-	if !reflect.DeepEqual(rootSegments, want) {
-		t.Errorf("addCwd returned %+v, not %+v", rootSegments, want)
-	}
-}
-
-func Test_addCwd_home_three(t *testing.T) {
-	segments := [][]string{}
-
-	dir := "~/Go/src/github.com"
-	parts := strings.Split(dir, "/")
-
-	rootSegments := addCwd(parts, "...", ">")
-	want := append(
-		segments,
-		[]string{"015", "031", "~"},
-		[]string{"250", "237", "Go", ">", "244"},
-		[]string{"250", "237", "...", ">", "244"},
-		[]string{"250", "237", "github.com"},
-	)
-
-	if !reflect.DeepEqual(rootSegments, want) {
-		t.Errorf("addCwd returned %+v, not %+v", rootSegments, want)
-	}
-}
-
-func Test_addCwd_home_five(t *testing.T) {
-	segments := [][]string{}
-
-	dir := "~/Go/src/github.com/sivel/powerline-shell-go"
-	parts := strings.Split(dir, "/")
-
-	rootSegments := addCwd(parts, "...", ">")
-	want := append(
-		segments,
-		[]string{"015", "031", "~"},
-		[]string{"250", "237", "Go", ">", "244"},
-		[]string{"250", "237", "...", ">", "244"},
-		[]string{"250", "237", "powerline-shell-go"},
-	)
-
-	if !reflect.DeepEqual(rootSegments, want) {
-		t.Errorf("addCwd returned %+v, not %+v", rootSegments, want)
-	}
+	assert.Equal(t, want, rootSegments)
 }

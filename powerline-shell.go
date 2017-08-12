@@ -20,8 +20,8 @@ package main
 import (
 	"fmt"
 	"os"
-
-	"github.com/otann/powerline-go/powerline"
+	"time"
+	"./powerline"
 )
 
 func main() {
@@ -35,20 +35,26 @@ func main() {
 	if len(os.Args) > 2 {
 		exitCode = os.Args[2]
 	}
-
-	theme := powerline.SolarizedDark()
-	symbols := powerline.DefaultSymbols()
-
-	cwd, cwdParts := powerline.GetCurrentWorkingDir()
-	segments := []powerline.Segment{
-		powerline.HomeSegment(cwdParts, theme),
-		powerline.PathSegment(cwdParts, theme, symbols),
-		powerline.GitSegment(theme),
-		powerline.LockSegment(cwd, theme, symbols),
-		powerline.ExitCodeSegment(exitCode, theme),
+	width := "0"
+	if len(os.Args) > 4 {
+		width = os.Args[4]
 	}
 
-	p := powerline.NewPowerline(shell, symbols, segments, theme)
+	theme := powerline.Dark()
+	symbols := powerline.DefaultSymbols()
+	p := powerline.NewPowerline(shell, symbols, theme)
 
-	fmt.Print(p.PrintSegments())
+
+	cwd, cwdParts := powerline.GetCurrentWorkingDir()
+	gitStatus, gitStaged := powerline.GetGitInformation()
+
+	p.AppendLeft(powerline.HomeSegment(cwdParts, theme))
+	p.AppendLeft(powerline.PathSegment(cwdParts, theme, symbols))
+	p.AppendLeft(powerline.LockSegment(cwd, theme, symbols))
+	p.AppendRight(powerline.GitSegment(theme, gitStatus, gitStaged))
+	p.AppendRight(powerline.TimeSegment(time.Now(), theme))
+	p.AppendDown(powerline.BashSegment(theme))
+	p.AppendDown(powerline.ExitCodeSegment(exitCode, theme))
+
+	fmt.Print(p.PrintAll(width))
 }
