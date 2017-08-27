@@ -1,17 +1,20 @@
 package powerline
 
 import (
-	"fmt"
 	"log"
-	"os"
+	"golang.org/x/sys/unix"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
+
+type SegmentBuilder struct {
+	theme   Theme
+	symbols Symbols
+}
 
 type Segment struct {
 	Bg    string
@@ -24,47 +27,46 @@ type GitInfo struct {
 	Branch        string
 	CommitsAhead  int
 	CommitsBehind int
+	NoGit         bool
 	Staged        bool
 	Tag           string
+	Untracked     bool
 }
 
-func isWritableDir(dir string) bool {
-	tmpPath := path.Join(dir, ".powerline-write-test")
-	_, err := os.Create(tmpPath)
-	if err != nil {
-		return false
+func NewSegmentBuilder(theme Theme, symbols Symbols) SegmentBuilder {
+	return SegmentBuilder{
+		theme:   theme,
+		symbols: symbols,
 	}
-	os.Remove(tmpPath)
-	return true
 }
 
-func LockSegment(cwd string, t Theme, s Symbols) Segment {
+func (s *SegmentBuilder) LockSegment(cwd string) Segment {
 	if isWritableDir(cwd) {
 		return Segment{value: ""}
 	} else {
 		return Segment{
-			Bg:    t.Lock.Bg,
-			Fg:    t.Lock.Fg,
-			value: s.Lock,
+			Bg:    s.theme.Lock.Bg,
+			Fg:    s.theme.Lock.Fg,
+			value: s.symbols.Lock,
 		}
 	}
 }
 
-func GetCurrentWorkingDir() (string, []string) {
+func GetCurrentWorkingDir(username string) (string, []string) {
 	dir, err := filepath.Abs(".")
 	if err != nil {
 		log.Fatal(err)
 	}
-	userDir := strings.Replace(dir, os.Getenv("HOME"), "~", 1)
+	userDir := strings.Replace(dir, "/home/"+username, "~", 1)
 	userDir = strings.TrimSuffix(userDir, "/")
 	parts := strings.Split(userDir, "/")
 	return dir, parts
 }
 
-func UserSegment(t Theme, username string) Segment {
-	c := t.User
+func (s *SegmentBuilder) UserSegment(username string) Segment {
+	c := s.theme.User
 	if username == "root" {
-		c = t.Root
+		c = s.theme.Root
 	}
 	return Segment{
 		Bg:    c.Bg,
@@ -73,11 +75,9 @@ func UserSegment(t Theme, username string) Segment {
 	}
 }
 
-func HostSegment(t Theme, hostname string) Segment {
-	c := t.Host.Other
-	if m, _ := regexp.MatchString("-desktop$", hostname); m {
-		c = t.Host.Desktop
-	}
+func (s *SegmentBuilder) HostSegment(hostname string) Segment {
+	c := getHostColor(s.theme.Host, hostname)
+
 	return Segment{
 		Bg:    c.Bg,
 		Fg:    c.Fg,
@@ -85,10 +85,10 @@ func HostSegment(t Theme, hostname string) Segment {
 	}
 }
 
-func PathSegment(cwdParts []string, t Theme) Segment {
-	var c = t.Path
+func (s *SegmentBuilder) PathSegment(cwdParts []string) Segment {
+	var c = s.theme.Path
 	if cwdParts[0] == "~" {
-		c = t.Home
+		c = s.theme.Home
 	}
 
 	return Segment{
@@ -99,112 +99,134 @@ func PathSegment(cwdParts []string, t Theme) Segment {
 }
 
 func GetGitInformation() GitInfo {
-	var status string
-	var staged bool
-	stdout, _ := exec.Command("git", "status", "--ignore-submodules").Output()
+	var r = GitInfo{
+		Branch:        "",
+		CommitsAhead:  0,
+		CommitsBehind: 0,
+		Staged:        false,
+		Tag:           "",
+	}
+	stdout, err := exec.Command("git", "status", "--ignore-submodules").Output()
+	if err != nil {
+		r.NoGit = true
+		return r
+	}
 	reBranch := regexp.MustCompile(`^(HEAD detached at|HEAD detached from|On branch) (\S+)`)
 	matchBranch := reBranch.FindStringSubmatch(string(stdout))
-	if len(matchBranch) > 0 {
-		if matchBranch[2] == "detached" {
-			status = matchBranch[2]
-		} else {
-			status = matchBranch[2]
-		}
+	if len(matchBranch) > 0 && matchBranch[1] == "On branch" {
+		r.Branch = matchBranch[2]
 	}
 
 	reStatus := regexp.MustCompile(`Your branch is (ahead|behind).*?([0-9]+) comm`)
 	matchStatus := reStatus.FindStringSubmatch(string(stdout))
 	if len(matchStatus) > 0 {
-		status = fmt.Sprintf("%s %s", status, matchStatus[2])
 		if matchStatus[1] == "behind" {
-			status = fmt.Sprintf("%s\u21E3", status)
+			r.CommitsBehind, _ = strconv.Atoi(matchStatus[2])
 		} else if matchStatus[1] == "ahead" {
-			status = fmt.Sprintf("%s\u21E1", status)
+			r.CommitsAhead, _ = strconv.Atoi(matchStatus[2])
 		}
 	} else {
 		reStatus := regexp.MustCompile(`Your branch and.*\n.*(\d+) and (\d+) diff`)
 		matchStatus := reStatus.FindStringSubmatch(string(stdout))
 		if len(matchStatus) > 0 {
-			status = fmt.Sprintf(
-				"%s %s\u21E3 %s\u21E1",
-				status,
-				matchStatus[1],
-				matchStatus[2],
-			)
+			r.CommitsBehind, _ = strconv.Atoi(matchStatus[2])
+			r.CommitsAhead, _ = strconv.Atoi(matchStatus[1])
 		}
 	}
 
-	staged = !strings.Contains(string(stdout), "nothing to commit")
-	if strings.Contains(string(stdout), "Untracked files") {
-		status = fmt.Sprintf("%s +", status)
-	}
+	r.Staged = !strings.Contains(string(stdout), "nothing to commit")
+	r.Untracked = strings.Contains(string(stdout), "Untracked files")
 
-	tag, _ := exec.Command("git", "describe", "--tags", "--exact").Output()
+	output, _ := exec.Command("git", "describe", "--tags", "--exact").Output()
+	r.Tag = strings.TrimSpace(string(output))
 
-	return GitInfo{
-		Branch:        status,
-		CommitsAhead:  0,
-		CommitsBehind: 0,
-		Staged:        staged,
-		Tag:           strings.TrimSpace(string(tag)),
-	}
+	return r
 }
 
-func GitSegment(t Theme, gitInfo GitInfo) Segment {
-
-	gitStatus := gitInfo.Branch
-	if gitStatus != "" {
-		var bg = t.Git.Clean.Bg
-		var fg = t.Git.Clean.Fg
-		gitStatus = " " + gitStatus
-		if gitInfo.Staged {
-			bg = t.Git.Dirty.Bg
-			fg = t.Git.Dirty.Fg
-			gitStatus += " ▲"
-			//gitStatus += " ▲↑↓"
-		}
-		if gitInfo.Tag != "" {
-			gitStatus += " \"" + gitInfo.Tag + "\""
-		}
-		return Segment{
-			Bg:    bg,
-			Fg:    fg,
-			value: gitStatus,
-		}
-	} else {
+func (s *SegmentBuilder) GitSegment(gitInfo GitInfo) Segment {
+	if gitInfo.NoGit {
 		return Segment{value: ""}
 	}
+
+	bg := s.theme.Git.Clean.Bg
+	fg := s.theme.Git.Clean.Fg
+	gitStatus := s.symbols.Branch + " " + gitInfo.Branch
+	if gitInfo.Branch == "" {
+		gitStatus = s.symbols.Branch + " no branch!"
+	}
+	if gitInfo.Tag != "" {
+		gitStatus += " \"" + gitInfo.Tag + "\""
+	}
+	if gitInfo.CommitsBehind > 0 {
+		gitStatus += " " + strconv.Itoa(gitInfo.CommitsBehind) + s.symbols.CommitsBehind
+	}
+	if gitInfo.CommitsAhead > 0 {
+		gitStatus += " " + strconv.Itoa(gitInfo.CommitsAhead) + s.symbols.CommitsAhead
+	}
+	if gitInfo.Staged {
+		bg = s.theme.Git.Dirty.Bg
+		fg = s.theme.Git.Dirty.Fg
+		gitStatus += " " + s.symbols.GitDiff
+	}
+	return Segment{
+		Bg:    bg,
+		Fg:    fg,
+		value: gitStatus,
+	}
 }
 
-func ExitCodeSegment(code string, t Theme) Segment {
+func (s *SegmentBuilder) ExitCodeSegment(code string) Segment {
 	i, err := strconv.Atoi(code)
 	if err != nil || i == 0 {
 		return Segment{value: ""}
-	} else {
-		return Segment{
-			Bg:    t.Error.Bg,
-			Fg:    t.Error.Fg,
-			value: code,
-		}
+	}
+
+	return Segment{
+		Bg:    s.theme.Error.Bg,
+		Fg:    s.theme.Error.Fg,
+		value: code,
 	}
 }
 
-func BashSegment(t Theme, username string) Segment {
+func (s *SegmentBuilder) BashSegment(username string) Segment {
 	v := "$"
 	if username == "root" {
 		v = "#"
 	}
 	return Segment{
-		Bg:    t.Path.Bg,
-		Fg:    t.Path.Fg,
+		Bg:    s.theme.Path.Bg,
+		Fg:    s.theme.Path.Fg,
 		value: v,
 	}
 }
 
-func TimeSegment(time time.Time, t Theme) Segment {
+func (s *SegmentBuilder) TimeSegment(time time.Time) Segment {
 	return Segment{
-		Bg:    t.User.Bg,
-		Fg:    t.User.Fg,
+		Bg:    s.theme.User.Bg,
+		Fg:    s.theme.User.Fg,
 		value: time.Format("Mon 2 15:04:05"),
 	}
+}
+
+func isWritableDir(dir string) bool {
+	return unix.Access(dir, unix.W_OK) == nil
+}
+
+func getHostColor(h Host, hostname string) ColorPair {
+	if match("-desktop$", hostname) {
+		return h.Desktop
+	}
+	if match("^(p|vcc|[a-z]{2}[1-9])-", hostname) {
+		return h.Production
+	}
+	if match("^syslog-", hostname) {
+		return h.Special
+	}
+
+	return h.Other
+}
+
+func match(pattern string, hostname string) bool {
+	m, _ := regexp.MatchString(pattern, hostname)
+	return m
 }

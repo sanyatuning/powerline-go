@@ -2,9 +2,7 @@
 
 <img align="center" padding="5px" alt=":)" width="834px" src="/screenshot.png"/>
 
-*Font on the screenshot — amazing [Fira Code](https://github.com/tonsky/FiraCode)*
-
-Attempted fork of [powerline-shell](https://github.com/milkbikis/powerline-shell) in [Go](http://golang.org/)
+Attempted fork of [Otann/powerline-go](https://github.com/Otann/powerline-go)
 
 This application does not cover all features of powerline-shell, only those that I currently use.
  
@@ -12,16 +10,8 @@ For now it is only configurable trough the source recompilation, which is quite 
 
 ## Usage
 
-If you haven't install go, please do by using your favourite package manager, i.e.
-
-    brew install golang
+If you haven't install go, please fallow [this](https://golang.org/doc/install).
     
-Don't forget to set `$GOPATH` in your shell profile and update `$PATH`, something like:
-    
-    export GOPATH=$HOME/golang
-    export PATH="$GOPATH/bin:$PATH"
-    
-
 Then install the binary with
 
     go get github.com/sanyatuning/powerline-go
@@ -29,20 +19,20 @@ Then install the binary with
 
 ### Bash
 
-Install powerline-shell-go and add the following to your `~/.bashrc`
+Install powerline-go and add the following to your `~/.bashrc`
 
     function _update_ps1() {
-       export PS1="$(powerline-shell-go bash $? ${COLUMNS} 2> /dev/null)"
+       export PS1="$(powerline-go bash $? ${COLUMNS} 2> /dev/null)"
     }
 
     export PROMPT_COMMAND="_update_ps1; $PROMPT_COMMAND"
 
 ### Zsh
 
-Install powerline-shell-go and add the following to your `~/.zshrc`
+Install powerline-go and add the following to your `~/.zshrc`
 
     function powerline_precmd() {
-      export PS1="$(powerline-shell-go zsh $? 2> /dev/null)"
+      export PS1="$(powerline-go zsh $? ${COLUMNS} 2> /dev/null)"
     }
 
     function install_powerline_precmd() {
@@ -57,6 +47,8 @@ Install powerline-shell-go and add the following to your `~/.zshrc`
     install_powerline_precmd
 
 ## Performance
+
+TODO: update
 
 ```
 $ time ~/git/milkbikis/powerline-shell/powerline-shell.py > /dev/null

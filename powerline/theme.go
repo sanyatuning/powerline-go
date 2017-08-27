@@ -41,10 +41,10 @@ func Dark() Theme {
 		Root:    ColorPair{Bg: "1", Fg: "7"},
 		User:    ColorPair{Bg: "22", Fg: "7"},
 		Host: Host{
-			Desktop: ColorPair{Bg: "34", Fg: "0"},
-			Other: ColorPair{Bg: "11", Fg: "0"},
+			Desktop:    ColorPair{Bg: "34", Fg: "0"},
+			Other:      ColorPair{Bg: "11", Fg: "0"},
 			Production: ColorPair{Bg: "1", Fg: "7"},
-			Special: ColorPair{Bg: "14", Fg: "0"},
+			Special:    ColorPair{Bg: "14", Fg: "0"},
 		},
 		Path: ColorPair{Bg: "0", Fg: "214"},
 		Home: ColorPair{Bg: "82", Fg: "0"},

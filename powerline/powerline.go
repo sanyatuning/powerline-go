@@ -10,38 +10,28 @@ import (
 )
 
 type Symbols struct {
-	Lock               string
-	Network            string
-	Separator          string
-	SeparatorThin      string
-	SeparatorRight     string
-	SeparatorThinRight string
-	Ellipsis           string
-	NewLine            string
+	Branch         string
+	CommitsAhead   string
+	CommitsBehind  string
+	Ellipsis       string
+	Lock           string
+	NewLine        string
+	GitDiff        string
+	Separator      string
+	SeparatorRight string
 }
 
 func DefaultSymbols() Symbols {
 	return Symbols{
-		Lock:               "\uE0A2",
-		Network:            "\uE0A2",
-		Separator:          "\uE0B0",
-		SeparatorThin:      "\uE0B1",
-		SeparatorRight:     "\uE0B2",
-		SeparatorThinRight: "\uE0B3",
-		Ellipsis:           "\u2026",
-		NewLine:            "\n",
-	}
-}
-func TestSymbols() Symbols {
-	return Symbols{
-		Lock:               "L",
-		Network:            "N",
-		Separator:          "->",
-		SeparatorThin:      ">",
-		SeparatorRight:     "<-",
-		SeparatorThinRight: "<",
-		Ellipsis:           "...",
-		NewLine:            "\n",
+		Branch:         "\uE0A0",
+		CommitsAhead:   "\u21E1",
+		CommitsBehind:  "\u21E3",
+		Ellipsis:       "\u2026",
+		Lock:           "\uE0A2",
+		NewLine:        "\n",
+		GitDiff:        "▲",
+		Separator:      "\uE0B0",
+		SeparatorRight: "\uE0B2",
 	}
 }
 
@@ -107,8 +97,10 @@ func (p *Powerline) PrintAll(width string) string {
 		count = 5
 	}
 	buffer.WriteString(left)
-	buffer.WriteString(strings.Repeat(" ", count))
-	buffer.WriteString(right)
+	if right != "" {
+		buffer.WriteString(strings.Repeat(" ", count))
+		buffer.WriteString(right)
+	}
 	buffer.WriteString(p.Symbols.NewLine)
 	buffer.WriteString(p.PrintSegments(p.SegmentsDown, true))
 	buffer.WriteString(" ")
