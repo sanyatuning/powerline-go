@@ -24,15 +24,15 @@ Don't forget to set `$GOPATH` in your shell profile and update `$PATH`, somethin
 
 Then install the binary with
 
-    go get github.com/otann/powerline-go
-    go install github.com/otann/powerline-go
+    go get github.com/sanyatuning/powerline-go
+    go install github.com/sanyatuning/powerline-go
 
 ### Bash
 
 Install powerline-shell-go and add the following to your `~/.bashrc`
 
     function _update_ps1() {
-       export PS1="$(powerline-shell-go bash $? 2> /dev/null)"
+       export PS1="$(powerline-shell-go bash $? ${COLUMNS} 2> /dev/null)"
     }
 
     export PROMPT_COMMAND="_update_ps1; $PROMPT_COMMAND"
