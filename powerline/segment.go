@@ -121,6 +121,17 @@ func GetGitInformation() GitInfo {
 		} else if matchStatus[1] == "ahead" {
 			status = fmt.Sprintf("%s\u21E1", status)
 		}
+	} else {
+		reStatus := regexp.MustCompile(`Your branch and.*\n.*(\d+) and (\d+) diff`)
+		matchStatus := reStatus.FindStringSubmatch(string(stdout))
+		if len(matchStatus) > 0 {
+			status = fmt.Sprintf(
+				"%s %s\u21E3 %s\u21E1",
+				status,
+				matchStatus[1],
+				matchStatus[2],
+			)
+		}
 	}
 
 	staged = !strings.Contains(string(stdout), "nothing to commit")
