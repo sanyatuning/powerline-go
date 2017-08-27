@@ -1,25 +1,32 @@
 package powerline
 
 import (
-	"path"
-	"os"
-	"path/filepath"
-	"log"
-	"strings"
-	"os/exec"
-	"regexp"
 	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
 type Segment struct {
-	Bg     string
-	Fg     string
-	sepFg  string
-	values []string
+	Bg    string
+	Fg    string
+	sepFg string
+	value string
 }
 
+type GitInfo struct {
+	Branch        string
+	CommitsAhead  int
+	CommitsBehind int
+	Staged        bool
+	Tag           string
+}
 
 func isWritableDir(dir string) bool {
 	tmpPath := path.Join(dir, ".powerline-write-test")
@@ -33,12 +40,12 @@ func isWritableDir(dir string) bool {
 
 func LockSegment(cwd string, t Theme, s Symbols) Segment {
 	if isWritableDir(cwd) {
-		return Segment{values: nil}
+		return Segment{value: ""}
 	} else {
 		return Segment{
-			Bg: t.Lock.Bg,
-			Fg: t.Lock.Fg,
-			values: []string{s.Lock},
+			Bg:    t.Lock.Bg,
+			Fg:    t.Lock.Fg,
+			value: s.Lock,
 		}
 	}
 }
@@ -54,47 +61,44 @@ func GetCurrentWorkingDir() (string, []string) {
 	return dir, parts
 }
 
-func HomeSegment(cwdParts []string, t Theme) Segment {
-	if cwdParts[0] == "~" {
-		return Segment{
-			Bg: t.Home.Bg,
-			Fg: t.Home.Fg,
-			values: []string{"~"},
-		}
-	} else {
-		return Segment{values: nil}
+func UserSegment(t Theme, username string) Segment {
+	c := t.User
+	if username == "root" {
+		c = t.Root
+	}
+	return Segment{
+		Bg:    c.Bg,
+		Fg:    c.Fg,
+		value: username,
 	}
 }
 
-func PathSegment(cwdParts []string, t Theme, s Symbols) Segment {
-
-	if cwdParts[0] == "~" {
-		cwdParts = cwdParts[1:]
-	} else {
-		cwdParts[0] = "/"
+func HostSegment(t Theme, hostname string) Segment {
+	c := t.Host.Other
+	if m, _ := regexp.MatchString("-desktop$", hostname); m {
+		c = t.Host.Desktop
 	}
+	return Segment{
+		Bg:    c.Bg,
+		Fg:    c.Fg,
+		value: hostname,
+	}
+}
 
-	length := len(cwdParts)
-	if length > 4 {
-		tmp := []string{}
-		tmp = append(tmp, cwdParts[0])
-		tmp = append(tmp, s.Ellipsis)
-		tmp = append(tmp, cwdParts[length-4])
-		tmp = append(tmp, cwdParts[length-3])
-		tmp = append(tmp, cwdParts[length - 2])
-		tmp = append(tmp, cwdParts[length - 1])
-		cwdParts = tmp
+func PathSegment(cwdParts []string, t Theme) Segment {
+	var c = t.Path
+	if cwdParts[0] == "~" {
+		c = t.Home
 	}
 
 	return Segment{
-		Bg: t.Path.Bg,
-		Fg: t.Path.Fg,
-		sepFg: t.Path.SepFg,
-		values: cwdParts,
+		Bg:    c.Bg,
+		Fg:    c.Fg,
+		value: strings.Join(cwdParts, "/"),
 	}
 }
 
-func GetGitInformation() (string, bool) {
+func GetGitInformation() GitInfo {
 	var status string
 	var staged bool
 	stdout, _ := exec.Command("git", "status", "--ignore-submodules").Output()
@@ -124,59 +128,72 @@ func GetGitInformation() (string, bool) {
 		status = fmt.Sprintf("%s +", status)
 	}
 
-	return status, staged
+	tag, _ := exec.Command("git", "describe", "--tags", "--exact").Output()
+
+	return GitInfo{
+		Branch:        status,
+		CommitsAhead:  0,
+		CommitsBehind: 0,
+		Staged:        staged,
+		Tag:           strings.TrimSpace(string(tag)),
+	}
 }
 
-func GitSegment(t Theme, gitStatus string, gitStaged bool) Segment {
+func GitSegment(t Theme, gitInfo GitInfo) Segment {
 
+	gitStatus := gitInfo.Branch
 	if gitStatus != "" {
-		var bg string
-		var fg string
-		if gitStaged {
+		var bg = t.Git.Clean.Bg
+		var fg = t.Git.Clean.Fg
+		gitStatus = " " + gitStatus
+		if gitInfo.Staged {
 			bg = t.Git.Dirty.Bg
 			fg = t.Git.Dirty.Fg
-		} else {
-			bg = t.Git.Clean.Bg
-			fg = t.Git.Clean.Fg
-
+			gitStatus += " ▲"
+			//gitStatus += " ▲↑↓"
+		}
+		if gitInfo.Tag != "" {
+			gitStatus += " \"" + gitInfo.Tag + "\""
 		}
 		return Segment{
-			Bg: bg,
-			Fg: fg,
-			values: []string{gitStatus},
+			Bg:    bg,
+			Fg:    fg,
+			value: gitStatus,
 		}
 	} else {
-		return Segment{values: nil}
+		return Segment{value: ""}
 	}
 }
 
 func ExitCodeSegment(code string, t Theme) Segment {
 	i, err := strconv.Atoi(code)
 	if err != nil || i == 0 {
-		return Segment{values: nil}
+		return Segment{value: ""}
 	} else {
 		return Segment{
-			Bg: t.Error.Bg,
-			Fg: t.Error.Fg,
-			values: []string{code},
+			Bg:    t.Error.Bg,
+			Fg:    t.Error.Fg,
+			value: code,
 		}
 	}
 }
 
-func BashSegment(t Theme) Segment {
+func BashSegment(t Theme, username string) Segment {
+	v := "$"
+	if username == "root" {
+		v = "#"
+	}
 	return Segment{
-		Bg: t.Home.Bg,
-		Fg: t.Home.Fg,
-		values: []string{
-			"$",
-		},
+		Bg:    t.Path.Bg,
+		Fg:    t.Path.Fg,
+		value: v,
 	}
 }
 
 func TimeSegment(time time.Time, t Theme) Segment {
 	return Segment{
-		Bg: t.Path.Bg,
-		Fg: t.Path.Fg,
-		values: []string{time.Format("Mon 2 15:04:05")},
+		Bg:    t.User.Bg,
+		Fg:    t.User.Fg,
+		value: time.Format("Mon 2 15:04:05"),
 	}
 }

@@ -1,11 +1,11 @@
 package powerline
 
 import (
-	"fmt"
 	"bytes"
-	"strings"
-	"strconv"
+	"fmt"
 	"regexp"
+	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -64,10 +64,16 @@ func (p *Powerline) color(prefix string, code string) string {
 }
 
 func (p *Powerline) fgColor(code string) string {
+	if code == "" {
+		return ""
+	}
 	return p.color("38", code)
 }
 
 func (p *Powerline) bgColor(code string) string {
+	if code == "" {
+		return p.Reset
+	}
 	return p.color("48", code)
 }
 
@@ -86,8 +92,8 @@ func (p *Powerline) AppendDown(s Segment) {
 func (p *Powerline) PrintAll(width string) string {
 	var buffer bytes.Buffer
 	var re = regexp.MustCompile(`\\\[\\e.*?\\]`)
-	left := p.PrintSegments(p.SegmentsLeft, false)
-	right := p.PrintSegments(p.SegmentsRight, true)
+	left := p.PrintSegments(p.SegmentsLeft, true)
+	right := p.PrintSegments(p.SegmentsRight, false)
 
 	s1 := re.ReplaceAllString(left, ``)
 	s2 := re.ReplaceAllString(right, ``)
@@ -104,12 +110,12 @@ func (p *Powerline) PrintAll(width string) string {
 	buffer.WriteString(strings.Repeat(" ", count))
 	buffer.WriteString(right)
 	buffer.WriteString(p.Symbols.NewLine)
-	buffer.WriteString(p.PrintSegments(p.SegmentsDown, false))
+	buffer.WriteString(p.PrintSegments(p.SegmentsDown, true))
 	buffer.WriteString(" ")
 	return buffer.String()
 }
 
-func (p *Powerline) PrintSegments(segments []Segment, right bool) string {
+func (p *Powerline) PrintSegments(segments []Segment, left bool) string {
 	if len(segments) == 0 {
 		return ""
 	}
@@ -118,7 +124,7 @@ func (p *Powerline) PrintSegments(segments []Segment, right bool) string {
 
 	for i, cur := range segments {
 		next := getNext(segments, i)
-		buffer.WriteString(p.PrintSegment(cur, next, right))
+		buffer.WriteString(p.PrintSegment(cur, next, left))
 	}
 
 	buffer.WriteString(p.Reset)
@@ -126,8 +132,8 @@ func (p *Powerline) PrintSegments(segments []Segment, right bool) string {
 	return buffer.String()
 }
 
-func (p *Powerline) PrintSegment(segment Segment, next *Segment, right bool) string {
-	if segment.values == nil {
+func (p *Powerline) PrintSegment(segment Segment, next *Segment, left bool) string {
+	if segment.value == "" {
 		return ""
 	}
 	var buffer bytes.Buffer
@@ -140,35 +146,21 @@ func (p *Powerline) PrintSegment(segment Segment, next *Segment, right bool) str
 	}
 
 	// print parts with correct foregrounds
-	for j, segPart := range segment.values {
-		if right {
-			if j == 0 {
-				buffer.WriteString(p.fgColor(segment.Bg))
-				buffer.WriteString(p.Symbols.SeparatorRight)
-			} else {
-				// while not last part
-				buffer.WriteString(p.fgColor(segment.sepFg))
-				buffer.WriteString(p.Symbols.SeparatorThinRight)
-			}
+	if left {
+		buffer.WriteString(p.bgColor(segment.Bg))
+		buffer.WriteString(p.fgColor(segment.Fg))
+		buffer.WriteString(fmt.Sprintf(" %s ", segment.value))
 
-			buffer.WriteString(p.fgColor(segment.Fg))
-			buffer.WriteString(p.bgColor(segment.Bg))
-			buffer.WriteString(fmt.Sprintf(" %s ", segPart))
-		} else {
-			buffer.WriteString(p.bgColor(segment.Bg))
-			buffer.WriteString(p.fgColor(segment.Fg))
-			buffer.WriteString(fmt.Sprintf(" %s ", segPart))
-			if (j + 1) == len(segment.values) {
-				// last part switches background to next
-				buffer.WriteString(nextBg)
-				buffer.WriteString(p.fgColor(segment.Bg))
-				buffer.WriteString(p.Symbols.Separator)
-			} else {
-				// while not last part
-				buffer.WriteString(p.fgColor(segment.sepFg))
-				buffer.WriteString(p.Symbols.SeparatorThin)
-			}
-		}
+		buffer.WriteString(nextBg)
+		buffer.WriteString(p.fgColor(segment.Bg))
+		buffer.WriteString(p.Symbols.Separator)
+	} else {
+		buffer.WriteString(p.fgColor(segment.Bg))
+		buffer.WriteString(p.Symbols.SeparatorRight)
+
+		buffer.WriteString(p.fgColor(segment.Fg))
+		buffer.WriteString(p.bgColor(segment.Bg))
+		buffer.WriteString(fmt.Sprintf(" %s ", segment.value))
 	}
 
 	return buffer.String()
@@ -184,9 +176,9 @@ func NewPowerline(shell string, sym Symbols, t Theme) Powerline {
 		}
 	} else if shell == "zsh" {
 		p = Powerline{
-			ShTemplate:    "%s",
+			ShTemplate: "%s",
 			ColorTemplate: "%%{[%s;5;%sm%%}",
-			Reset:         "%{$reset_color%}",
+			Reset: "%{$reset_color%}",
 		}
 	} else {
 		p = Powerline{
@@ -204,7 +196,7 @@ func NewPowerline(shell string, sym Symbols, t Theme) Powerline {
 func getNext(segments []Segment, i int) *Segment {
 	i++
 	for i < len(segments) {
-		if segments[i].values != nil {
+		if segments[i].value != "" {
 			return &segments[i]
 		}
 		i++

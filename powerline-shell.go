@@ -19,9 +19,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/sanyatuning/powerline-go/powerline"
 	"os"
 	"time"
-	"./powerline"
 )
 
 func main() {
@@ -36,24 +36,26 @@ func main() {
 		exitCode = os.Args[2]
 	}
 	width := "0"
-	if len(os.Args) > 4 {
-		width = os.Args[4]
+	if len(os.Args) > 3 {
+		width = os.Args[3]
 	}
 
 	theme := powerline.Dark()
 	symbols := powerline.DefaultSymbols()
 	p := powerline.NewPowerline(shell, symbols, theme)
 
-
 	cwd, cwdParts := powerline.GetCurrentWorkingDir()
-	gitStatus, gitStaged := powerline.GetGitInformation()
+	gitInfo := powerline.GetGitInformation()
+	username := os.Getenv("USER")
+	hostname, _ := os.Hostname()
 
-	p.AppendLeft(powerline.HomeSegment(cwdParts, theme))
-	p.AppendLeft(powerline.PathSegment(cwdParts, theme, symbols))
+	p.AppendLeft(powerline.UserSegment(theme, username))
+	p.AppendLeft(powerline.HostSegment(theme, hostname))
+	p.AppendLeft(powerline.PathSegment(cwdParts, theme))
 	p.AppendLeft(powerline.LockSegment(cwd, theme, symbols))
-	p.AppendRight(powerline.GitSegment(theme, gitStatus, gitStaged))
+	p.AppendRight(powerline.GitSegment(theme, gitInfo))
 	p.AppendRight(powerline.TimeSegment(time.Now(), theme))
-	p.AppendDown(powerline.BashSegment(theme))
+	p.AppendDown(powerline.BashSegment(theme, username))
 	p.AppendDown(powerline.ExitCodeSegment(exitCode, theme))
 
 	fmt.Print(p.PrintAll(width))

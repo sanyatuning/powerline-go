@@ -16,39 +16,43 @@ type Git struct {
 	Dirty ColorPair
 }
 
+type Host struct {
+	Desktop    ColorPair
+	Other      ColorPair
+	Production ColorPair
+	Special    ColorPair
+}
+
 type Theme struct {
 	ShellBg string
-	Home ColorPair
-	Path ColorTriplet
+	Host    Host
+	User    ColorPair
+	Root    ColorPair
+	Path    ColorPair
+	Home    ColorPair
 	Git
-	Lock ColorPair
+	Lock  ColorPair
 	Error ColorPair
 }
 
 func Dark() Theme {
 	return Theme{
 		ShellBg: "3",
-		Home: ColorPair{Bg: "237", Fg: "7"},
-		Path: ColorTriplet{Bg: "25", Fg: "254"},
-		Git: Git{
-			Clean: ColorPair{Bg: "148", Fg: "0"},
-			Dirty: ColorPair{Bg: "161", Fg: "15"},
+		Root:    ColorPair{Bg: "1", Fg: "7"},
+		User:    ColorPair{Bg: "22", Fg: "7"},
+		Host: Host{
+			Desktop: ColorPair{Bg: "34", Fg: "0"},
+			Other: ColorPair{Bg: "11", Fg: "0"},
+			Production: ColorPair{Bg: "1", Fg: "7"},
+			Special: ColorPair{Bg: "14", Fg: "0"},
 		},
-		Lock: ColorPair{Bg: "3", Fg: "7"},
-		Error: ColorPair{Bg: "1", Fg: "7"},
-	}
-}
-
-func SolarizedDark() Theme {
-	return Theme{
-		ShellBg: "0",
-		Home: ColorPair{Bg: "10", Fg: "0"},
-		Path: ColorTriplet{Bg: "8", Fg: "12", SepFg: "0"},
+		Path: ColorPair{Bg: "0", Fg: "214"},
+		Home: ColorPair{Bg: "82", Fg: "0"},
 		Git: Git{
-			Clean: ColorPair{Bg: "14", Fg: "0"},
-			Dirty: ColorPair{Bg: "2", Fg: "0"},
+			Clean: ColorPair{Bg: "0", Fg: "10"},
+			Dirty: ColorPair{Bg: "0", Fg: "202"},
 		},
-		Lock: ColorPair{Bg: "4", Fg: "7"},
+		Lock:  ColorPair{Bg: "1", Fg: "7"},
 		Error: ColorPair{Bg: "1", Fg: "7"},
 	}
 }
